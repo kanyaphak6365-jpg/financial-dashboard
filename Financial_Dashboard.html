@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Financial Dashboard – CAMT</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Sarabun',sans-serif;background:#F4F6FA;color:#1F2937;padding:20px;min-height:100vh}
+  .wrap{max-width:1500px;margin:0 auto}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+  h1{font-size:22px;font-weight:600;color:#1F3864}
+  .sub{font-size:13px;color:#6B7280}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .toolbar label{font-size:12px;color:#6B7280}
+  .toolbar select{padding:6px 12px;border:1px solid #D1D5DB;border-radius:6px;background:#fff;font-family:inherit;font-size:13px;cursor:pointer}
+  .btn-upload{background:#1F3864;color:#fff;padding:8px 16px;border:none;border-radius:6px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .2s}
+  .btn-upload:hover{background:#2E4F8A}
+  .btn-reset{background:#fff;color:#6B7280;border:1px solid #D1D5DB;padding:8px 14px;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer}
+  .btn-reset:hover{background:#F3F4F6}
+  #fileInput{display:none}
+  .file-info{font-size:11px;color:#6B7280;padding:4px 10px;background:#E0F2FE;border-radius:4px;border:1px solid #BAE6FD;display:none}
+  .file-info.show{display:inline-block}
+  .file-info.error{background:#FEE2E2;border-color:#FCA5A5;color:#991B1B}
+  .tabs{display:flex;gap:4px;background:#fff;padding:6px;border-radius:10px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .tab{flex:1;padding:10px 16px;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:500;color:#6B7280;border-radius:7px;cursor:pointer;transition:all .2s}
+  .tab.active{background:#1F3864;color:#fff}
+  .tab:hover:not(.active){background:#F3F4F6}
+  .page{display:none}
+  .page.active{display:block}
+  .grid{display:grid;gap:14px}
+  .kpi-row{grid-template-columns:repeat(4,1fr)}
+  .main-row{grid-template-columns:1.4fr 1fr;align-items:start}
+  .row2{grid-template-columns:1fr 1.2fr;align-items:start}
+  .card{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .kpi{padding:16px 18px}
+  .kpi .lbl{font-size:12px;color:#6B7280;margin-bottom:6px}
+  .kpi .val{font-size:26px;font-weight:600;color:#111827}
+  .kpi .sub2{font-size:11px;margin-top:4px}
+  .kpi-plan{border-left:4px solid #5B9BD5}
+  .kpi-actual{border-left:4px solid #70AD47}
+  .kpi-cash{border-left:4px solid #4472C4}
+  .kpi-saving{border-left:4px solid #7030A0}
+  .kpi-warn{border-left:4px solid #C00000}
+  .card h3{font-size:13px;font-weight:600;color:#374151;margin-bottom:12px}
+  .chart-wrap{position:relative;height:280px}
+  .chart-tall{height:340px}
+  .chart-small{height:220px}
+  .gauge-num{text-align:center;font-size:28px;font-weight:600;margin-top:-110px;position:relative;pointer-events:none}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{background:#F3F4F6;color:#374151;font-weight:600;padding:8px 10px;text-align:left;border-bottom:2px solid #E5E7EB;font-size:12px}
+  td{padding:7px 10px;border-bottom:1px solid #F3F4F6}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.total-row{background:#FFF8DC;font-weight:600}
+  tr.total-row td{border-top:2px solid #E5E7EB}
+  .unit-cell{font-weight:500;color:#1F3864}
+  .footer{margin-top:18px;text-align:center;font-size:11px;color:#9CA3AF}
+  .upload-hint{background:#FFFBEB;border:1px dashed #FCD34D;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400E}
+  .upload-hint b{color:#78350F}
+  .upload-hint.hide{display:none}
+  @media (max-width:1100px){
+    .main-row,.row2{grid-template-columns:1fr}
+    .kpi-row{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="top">
+  <div>
+    <h1>Executive Financial Dashboard</h1>
+    <div class="sub">ภาพรวมรายรับ ค่าใช้จ่าย และเงินสะสม – CAMT / DITC / RESEARCH</div>
+  </div>
+  <div class="toolbar">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
+      📂 อัปโหลด Excel
+    </button>
+    <button class="btn-reset" onclick="loadSampleData()">↺ ใช้ข้อมูลตัวอย่าง</button>
+    <span id="fileInfo" class="file-info"></span>
+    <label>หน่วยงาน:</label>
+    <select id="unitFilter" onchange="renderAll()">
+      <option value="ALL">ทั้งหมด</option>
+      <option value="CAMT">CAMT</option>
+      <option value="DITC">DITC</option>
+      <option value="RESEARCH">RESEARCH</option>
+    </select>
+  </div>
+</div>
+
+<div class="upload-hint" id="hint">
+  <b>💡 วิธีใช้:</b> คลิก <b>"อัปโหลด Excel"</b> เพื่อเลือกไฟล์เทมเพลต <code>Financial_Dashboard_Template_Full.xlsx</code> ที่กรอกข้อมูลแล้ว Dashboard จะอัปเดตข้อมูลทันที
+  <br>โครงสร้างชีตที่ต้องมี: <code>รายการรายรับ</code>, <code>รายการค่าใช้จ่าย</code>, <code>เงินสะสมรายเดือน</code>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="revenue">รายรับ (Revenue)</button>
+  <button class="tab" data-tab="expense">ค่าใช้จ่าย (Expenses)</button>
+  <button class="tab" data-tab="cash">เงินสะสมรายเดือน (Cash Flow)</button>
+</div>
+
+<!-- PAGE 1: REVENUE -->
+<div class="page active" id="page-revenue">
+  <div class="grid kpi-row" style="margin-bottom:14px">
+    <div class="card kpi kpi-plan"><div class="lbl">แผนรับ</div><div class="val" id="rev-plan">-</div><div class="sub2" style="color:#5B9BD5">ปีงบประมาณปัจจุบัน</div></div>
+    <div class="card kpi kpi-actual"><div class="lbl">รับจริง</div><div class="val" id="rev-actual">-</div><div class="sub2" id="rev-actual-pct" style="color:#70AD47">-</div></div>
+    <div class="card kpi kpi-warn"><div class="lbl">ค้างรับตามสัญญา</div><div class="val" id="rev-contract">-</div><div class="sub2" style="color:#C00000">รอเก็บ</div></div>
+    <div class="card kpi kpi-saving"><div class="lbl">ค้างรับจากแผน</div><div class="val" id="rev-out">-</div><div class="sub2" style="color:#7030A0">ขาดจากเป้า</div></div>
+  </div>
+  <div class="grid main-row" style="margin-bottom:14px">
+    <div class="card"><h3>รายรับแยกตามหมวด – รับจริง vs ค้างรับตามสัญญา vs ค้างรับจากแผน (100% Stacked)</h3><div class="chart-wrap chart-tall"><canvas id="revStacked"></canvas></div></div>
+    <div class="card"><h3>% สำเร็จเทียบเป้าหมาย</h3><div class="chart-wrap"><canvas id="revGauge"></canvas></div><div class="gauge-num" id="rev-gauge-num" style="color:#1F3864">-</div></div>
+  </div>
+  <div class="grid row2">
+    <div class="card"><h3>สัดส่วนรับจริงตามหน่วยงาน</h3><div class="chart-wrap chart-small"><canvas id="revPie"></canvas></div></div>
+    <div class="card"><h3>ตารางรายละเอียดรายรับ</h3>
+      <div style="max-height:300px;overflow:auto">
+      <table><thead><tr><th>หน่วยงาน</th><th>รายการรายรับ</th><th style="text-align:right">แผนรับ</th><th style="text-align:right">รับจริง</th></tr></thead><tbody id="revTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: EXPENSE -->
+<div class="page" id="page-expense">
+  <div class="grid kpi-row" style="margin-bottom:14px">
+    <div class="card kpi kpi-plan"><div class="lbl">แผนจ่าย (Budget)</div><div class="val" id="exp-plan">-</div><div class="sub2" style="color:#5B9BD5">งบประมาณรวม</div></div>
+    <div class="card kpi kpi-actual"><div class="lbl">ค่าใช้จ่ายจริง</div><div class="val" id="exp-actual">-</div><div class="sub2" id="exp-actual-pct" style="color:#70AD47">-</div></div>
+    <div class="card kpi kpi-saving"><div class="lbl">คงเหลือ</div><div class="val" id="exp-remain">-</div><div class="sub2" id="exp-remain-pct" style="color:#7030A0">-</div></div>
+    <div class="card kpi kpi-warn"><div class="lbl">หมวดที่ใช้สูงสุด</div><div class="val" id="exp-top-cat" style="font-size:18px">-</div><div class="sub2" id="exp-top-val" style="color:#C00000">-</div></div>
+  </div>
+  <div class="grid main-row" style="margin-bottom:14px">
+    <div class="card"><h3>เปรียบเทียบ Total Budget vs Total Expense ตามหมวด</h3><div class="chart-wrap chart-tall"><canvas id="expBar"></canvas></div></div>
+    <div class="card"><h3>% การใช้จ่าย</h3><div class="chart-wrap"><canvas id="expGauge"></canvas></div><div class="gauge-num" id="exp-gauge-num" style="color:#C00000">-</div></div>
+  </div>
+  <div class="grid row2">
+    <div class="card"><h3>สัดส่วนค่าใช้จ่ายตามหน่วยงาน</h3><div class="chart-wrap chart-small"><canvas id="expPie"></canvas></div></div>
+    <div class="card"><h3>ตารางรายละเอียดค่าใช้จ่าย</h3>
+      <div style="max-height:300px;overflow:auto">
+      <table><thead><tr><th>หน่วยงาน</th><th>รายการค่าใช้จ่าย</th><th style="text-align:right">แผนจ่าย</th><th style="text-align:right">ค่าใช้จ่าย</th></tr></thead><tbody id="expTable"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 3: CASH FLOW -->
+<div class="page" id="page-cash">
+  <div class="grid kpi-row" style="margin-bottom:14px">
+    <div class="card kpi kpi-cash"><div class="lbl">CASH-CAMT (ปัจจุบัน)</div><div class="val" id="cash-camt">-</div><div class="sub2" style="color:#4472C4">เดือนล่าสุด</div></div>
+    <div class="card kpi kpi-cash"><div class="lbl">CASH-DITC (ปัจจุบัน)</div><div class="val" id="cash-ditc">-</div><div class="sub2" style="color:#4472C4">เดือนล่าสุด</div></div>
+    <div class="card kpi kpi-actual"><div class="lbl">Income รวม (ปี)</div><div class="val" id="cash-income">-</div><div class="sub2" style="color:#70AD47">12 เดือน</div></div>
+    <div class="card kpi kpi-warn"><div class="lbl">Expenses รวม (ปี)</div><div class="val" id="cash-expense">-</div><div class="sub2" style="color:#C00000">12 เดือน</div></div>
+  </div>
+  <div class="card" style="margin-bottom:14px"><h3>แนวโน้มเงินสะสมรายเดือน – CASH-CAMT</h3><div class="chart-wrap chart-tall"><canvas id="cashCAMT"></canvas></div></div>
+  <div class="card"><h3>Income vs Expenses รายเดือน + CASH-DITC</h3><div class="chart-wrap chart-tall"><canvas id="cashCombo"></canvas></div></div>
+</div>
+
+<div class="footer" id="footer">รอข้อมูล...</div>
+
+</div>
+
+<script>
+Chart.defaults.font.family = "'Sarabun', sans-serif";
+Chart.defaults.color = '#374151';
+
+// ============ Global Data ============
+let DATA = {revenue: [], expense: [], cash: []};
+const charts = {};
+
+const fmt = v => {
+  if (v == null || isNaN(v)) return '-';
+  if (Math.abs(v) >= 1e6) return '฿ ' + (v/1e6).toFixed(2) + 'M';
+  if (Math.abs(v) >= 1e3) return '฿ ' + (v/1e3).toFixed(1) + 'K';
+  return '฿ ' + v.toLocaleString();
+};
+const fmt2 = v => v == null || isNaN(v) ? '-' : v.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// ============ Sample Data ============
+function loadSampleData(){
+  DATA = {
+    revenue: [
+      {unit:'CAMT', cat:'1.ค่าธรรมเนียมการศึกษา', plan:118940185, actual:51296036.47, contract:30000000},
+      {unit:'CAMT', cat:'2.รายรับ GE', plan:1200000, actual:0, contract:0},
+      {unit:'CAMT', cat:'3.หลักสูตรร่วม', plan:2090000, actual:500000, contract:1100000},
+      {unit:'CAMT', cat:'4.อื่นๆ ดอกเบี้ย เงินโอน จัดสรร', plan:3572376.17, actual:3572376.17, contract:0},
+    ],
+    expense: [
+      {unit:'CAMT', cat:'1.ที่ดินและสิ่งก่อสร้าง', plan:5000000, actual:282300},
+      {unit:'CAMT', cat:'2.ครุภัณฑ์', plan:2281000, actual:691662.50},
+      {unit:'CAMT', cat:'3.ค่าจ้างชั่วคราว', plan:13923800, actual:4970063.97},
+      {unit:'CAMT', cat:'4.เงินสมทบพนักงานมหาวิทยาลัย', plan:3589000, actual:2223530.96},
+      {unit:'CAMT', cat:'5.เงินประจำตำแหน่งวิชาการ', plan:3886800, actual:2750721.94},
+      {unit:'CAMT', cat:'6.เงินประจำตำแหน่งบริหาร', plan:1417200, actual:899200},
+      {unit:'CAMT', cat:'7.ค่าตอบแทน ใช้สอยและวัสดุ', plan:35358600, actual:10415453.76},
+      {unit:'CAMT', cat:'8.ค่าสาธารณูปโภค', plan:3374000, actual:266395.61},
+      {unit:'CAMT', cat:'9.เงินอุดหนุน', plan:33660976, actual:7274659.40},
+      {unit:'CAMT', cat:'10.ค่าใช้จ่ายอื่น', plan:7500000, actual:0},
+      {unit:'DITC', cat:'11.ค่าใช้จ่ายศูนย์ DITC', plan:2168000, actual:328849.35},
+      {unit:'DITC', cat:'12.ต้นทุนโครงการบริการวิชาการ', plan:49500000, actual:4106698.88},
+      {unit:'RESEARCH', cat:'13.วิจัย', plan:15000000, actual:606970},
+    ],
+    cash: [
+      {m:'ตุลาคม',income:7,expense:13,camt:144,ditc:28},
+      {m:'พฤศจิกายน',income:1,expense:26,camt:134,ditc:29},
+      {m:'ธันวาคม',income:6,expense:12,camt:128,ditc:29},
+      {m:'มกราคม',income:5,expense:8,camt:124,ditc:30},
+      {m:'กุมภาพันธ์',income:1,expense:3,camt:123,ditc:29},
+      {m:'มีนาคม',income:22,expense:9,camt:136,ditc:29},
+      {m:'เมษายน',income:19,expense:3,camt:152,ditc:28},
+      {m:'พฤษภาคม',income:3,expense:10,camt:140,ditc:33},
+      {m:'มิถุนายน',income:4,expense:10,camt:134,ditc:33},
+      {m:'กรกฎาคม',income:28,expense:10,camt:129,ditc:42},
+      {m:'สิงหาคม',income:5,expense:10,camt:118,ditc:43},
+      {m:'กันยายน',income:57,expense:10,camt:150,ditc:42},
+    ].map(d => ({...d, income:d.income*1e6, expense:d.expense*1e6, camt:d.camt*1e6, ditc:d.ditc*1e6}))
+  };
+  document.getElementById('fileInfo').classList.remove('show','error');
+  document.getElementById('hint').classList.remove('hide');
+  document.getElementById('footer').textContent = 'แหล่งข้อมูล: ข้อมูลตัวอย่าง (Sample)';
+  renderAll();
+}
+
+// ============ Excel Upload ============
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const info = document.getElementById('fileInfo');
+  info.textContent = '⏳ กำลังอ่านไฟล์...';
+  info.classList.add('show');
+  info.classList.remove('error');
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'array'});
+      parseWorkbook(wb);
+      info.textContent = '✓ โหลดสำเร็จ: ' + file.name;
+      info.classList.remove('error');
+      document.getElementById('hint').classList.add('hide');
+      document.getElementById('footer').textContent = 'แหล่งข้อมูล: ' + file.name + ' • อัปเดต ' + new Date().toLocaleString('th-TH');
+      renderAll();
+    } catch(err) {
+      info.textContent = '✗ ผิดพลาด: ' + err.message;
+      info.classList.add('error');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function parseWorkbook(wb){
+  console.log('=== Parse Workbook ===');
+  console.log('Sheets:', wb.SheetNames);
+
+  // หา sheet โดย matching ชื่อแบบยืดหยุ่น
+  const findSheet = (candidates) => {
+    for (const name of wb.SheetNames) {
+      const n = name.trim();
+      for (const c of candidates) {
+        if (n === c) return wb.Sheets[name];
+        if (n.replace(/\s+/g,'') === c.replace(/\s+/g,'')) return wb.Sheets[name];
+        if (n.includes(c) || c.includes(n)) return wb.Sheets[name];
+      }
+    }
+    return null;
+  };
+
+  // หา header row อัตโนมัติ - นับเฉพาะ keyword ที่อยู่ในเซลล์แยกกัน
+  // (ไม่ใช่อยู่ในเซลล์ subtitle ยาว ๆ เซลล์เดียว)
+  const findHeaderRow = (rows, keywords) => {
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      const r = rows[i];
+      if (!r) continue;
+      let hits = 0;
+      for (const cell of r) {
+        if (cell == null) continue;
+        const s = String(cell).trim();
+        // ข้ามเซลล์ที่ยาวเกินไป (น่าจะเป็นประโยค subtitle ไม่ใช่ header)
+        if (s.length > 30) continue;
+        for (const k of keywords) {
+          if (s === k || s.includes(k) || k.includes(s)) {
+            hits++;
+            break; // 1 เซลล์ = 1 hit เท่านั้น
+          }
+        }
+      }
+      if (hits >= 2) return i;
+    }
+    return -1;
+  };
+
+  // จับคู่ column - ลอง exact match ก่อน ถ้าไม่เจอจึงค่อยลอง partial
+  const mapCols = (headerRow, fieldMap) => {
+    const result = {};
+    for (const [key, candidates] of Object.entries(fieldMap)) {
+      let foundIdx = -1;
+      // รอบที่ 1: exact match
+      for (let i = 0; i < headerRow.length; i++) {
+        const cell = headerRow[i];
+        if (cell == null) continue;
+        const s = String(cell).trim();
+        if (candidates.some(c => s === c)) { foundIdx = i; break; }
+      }
+      // รอบที่ 2: partial match (s.includes(c) — header มี candidate อยู่ข้างใน)
+      if (foundIdx < 0) {
+        for (let i = 0; i < headerRow.length; i++) {
+          const cell = headerRow[i];
+          if (cell == null) continue;
+          const s = String(cell).trim();
+          if (candidates.some(c => s.includes(c))) { foundIdx = i; break; }
+        }
+      }
+      // รอบที่ 3: candidate มี header อยู่ข้างใน (เป็น match ที่หลวมที่สุด)
+      if (foundIdx < 0) {
+        for (let i = 0; i < headerRow.length; i++) {
+          const cell = headerRow[i];
+          if (cell == null) continue;
+          const s = String(cell).trim();
+          if (candidates.some(c => c.includes(s) && s.length > 2)) { foundIdx = i; break; }
+        }
+      }
+      result[key] = foundIdx;
+    }
+    return result;
+  };
+
+  const dbg = [];
+
+  // --- Revenue ---
+  DATA.revenue = [];
+  const revSheet = findSheet(['รายการรายรับ','รายรับ','Revenue']);
+  if (revSheet) {
+    const rows = XLSX.utils.sheet_to_json(revSheet, {header:1, defval:null, blankrows:false});
+    const hIdx = findHeaderRow(rows, ['หน่วยงาน','หมวดรายรับ','แผนรับ','รับจริง']);
+    console.log('Revenue – rows:', rows.length, 'headerIdx:', hIdx, 'header:', rows[hIdx]);
+    if (hIdx >= 0) {
+      const colMap = mapCols(rows[hIdx], {
+        unit:['หน่วยงาน'], cat:['หมวดรายรับ','หมวด'],
+        plan:['แผนรับ'], actual:['รับจริง'], contract:['ค้างรับตามสัญญา']
+      });
+      console.log('Revenue colMap:', colMap);
+      dbg.push(`รายรับ: header แถว ${hIdx+1}`);
+      for (let i = hIdx + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r) continue;
+        const uV = colMap.unit >= 0 ? r[colMap.unit] : null;
+        const cV = colMap.cat >= 0 ? r[colMap.cat] : null;
+        if (!uV || !cV) continue;
+        const unit = String(uV).trim();
+        if (unit === 'รวม' || unit === 'ผลรวม' || unit.startsWith('Total')) continue;
+        DATA.revenue.push({
+          unit, cat: String(cV).trim(),
+          plan: +r[colMap.plan] || 0,
+          actual: +r[colMap.actual] || 0,
+          contract: +r[colMap.contract] || 0,
+        });
+      }
+    } else { dbg.push('รายรับ: หา header ไม่พบ'); }
+  } else { dbg.push('ไม่พบชีต "รายการรายรับ"'); }
+
+  // --- Expense ---
+  DATA.expense = [];
+  const expSheet = findSheet(['รายการค่าใช้จ่าย','ค่าใช้จ่าย','Expense']);
+  if (expSheet) {
+    const rows = XLSX.utils.sheet_to_json(expSheet, {header:1, defval:null, blankrows:false});
+    const hIdx = findHeaderRow(rows, ['หน่วยงาน','หมวดค่าใช้จ่าย','แผนจ่าย','ค่าใช้จ่ายจริง']);
+    console.log('Expense – rows:', rows.length, 'headerIdx:', hIdx, 'header:', rows[hIdx]);
+    if (hIdx >= 0) {
+      const colMap = mapCols(rows[hIdx], {
+        unit:['หน่วยงาน'], cat:['หมวดค่าใช้จ่าย','หมวด'],
+        plan:['แผนจ่าย'], actual:['ค่าใช้จ่ายจริง','ค่าใช้จ่าย']
+      });
+      console.log('Expense colMap:', colMap);
+      dbg.push(`ค่าใช้จ่าย: header แถว ${hIdx+1}`);
+      for (let i = hIdx + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r) continue;
+        const uV = colMap.unit >= 0 ? r[colMap.unit] : null;
+        const cV = colMap.cat >= 0 ? r[colMap.cat] : null;
+        if (!uV || !cV) continue;
+        const unit = String(uV).trim();
+        if (unit === 'รวม' || unit === 'ผลรวม' || unit.startsWith('Total')) continue;
+        DATA.expense.push({
+          unit, cat: String(cV).trim(),
+          plan: +r[colMap.plan] || 0,
+          actual: +r[colMap.actual] || 0
+        });
+      }
+    } else { dbg.push('ค่าใช้จ่าย: หา header ไม่พบ'); }
+  } else { dbg.push('ไม่พบชีต "รายการค่าใช้จ่าย"'); }
+
+  // --- Cash flow ---
+  DATA.cash = [];
+  const cfSheet = findSheet(['เงินสะสมรายเดือน','เงินสะสม','Cash']);
+  if (cfSheet) {
+    const rows = XLSX.utils.sheet_to_json(cfSheet, {header:1, defval:null, blankrows:false});
+    const hIdx = findHeaderRow(rows, ['เดือน','Income','Expenses','CASH-CAMT','CASH-DITC']);
+    console.log('Cash – rows:', rows.length, 'headerIdx:', hIdx, 'header:', rows[hIdx]);
+    if (hIdx >= 0) {
+      const colMap = mapCols(rows[hIdx], {
+        month:['เดือน'],
+        income:['Income (รายรับ)','Income','รายรับ'],
+        expense:['Expenses (รายจ่าย)','Expenses','รายจ่าย'],
+        camt:['CASH-CAMT'], ditc:['CASH-DITC']
+      });
+      console.log('Cash colMap:', colMap);
+      dbg.push(`เงินสะสม: header แถว ${hIdx+1}`);
+      for (let i = hIdx + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r) continue;
+        const mV = colMap.month >= 0 ? r[colMap.month] : null;
+        if (!mV) continue;
+        const mStr = String(mV).trim();
+        if (mStr === 'รวมทั้งปี' || mStr.startsWith('Total') || /^\d+$/.test(mStr)) continue;
+        // ข้ามถ้า column "เดือน" ที่เจอเป็น header ของ "เลขเดือน" (ตัวเลข)
+        DATA.cash.push({
+          m: mStr,
+          income: +r[colMap.income] || 0,
+          expense: +r[colMap.expense] || 0,
+          camt: +r[colMap.camt] || 0,
+          ditc: +r[colMap.ditc] || 0
+        });
+      }
+    } else { dbg.push('เงินสะสม: หา header ไม่พบ'); }
+  } else { dbg.push('ไม่พบชีต "เงินสะสมรายเดือน"'); }
+
+  console.log('Parsed:', {rev:DATA.revenue.length, exp:DATA.expense.length, cash:DATA.cash.length});
+
+  if (DATA.revenue.length === 0 && DATA.expense.length === 0 && DATA.cash.length === 0) {
+    throw new Error('ไม่พบข้อมูล (ชีต: ' + wb.SheetNames.join(', ') + ') | ' + dbg.join(' • '));
+  }
+}
+
+// ============ Filter ============
+function applyFilter(rows){
+  const unit = document.getElementById('unitFilter').value;
+  if (unit === 'ALL') return rows;
+  return rows.filter(r => r.unit === unit);
+}
+
+// ============ Render ============
+function destroyChart(id){
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function renderAll(){
+  renderRevenue();
+  renderExpense();
+  renderCash();
+}
+
+function renderRevenue(){
+  const rows = applyFilter(DATA.revenue);
+  const totalPlan = rows.reduce((s,x) => s+x.plan, 0);
+  const totalActual = rows.reduce((s,x) => s+x.actual, 0);
+  const totalContract = rows.reduce((s,x) => s+x.contract, 0);
+  const totalOut = totalPlan - totalActual - totalContract;
+  const pct = totalPlan ? (totalActual/totalPlan*100) : 0;
+
+  document.getElementById('rev-plan').textContent = fmt(totalPlan);
+  document.getElementById('rev-actual').textContent = fmt(totalActual);
+  document.getElementById('rev-actual-pct').textContent = '▲ ' + pct.toFixed(2) + '% ของแผน';
+  document.getElementById('rev-contract').textContent = fmt(totalContract);
+  document.getElementById('rev-out').textContent = fmt(totalOut);
+  document.getElementById('rev-gauge-num').textContent = pct.toFixed(2) + '%';
+
+  // Aggregate by category
+  const byCat = {};
+  rows.forEach(r => {
+    if (!byCat[r.cat]) byCat[r.cat] = {plan:0, actual:0, contract:0};
+    byCat[r.cat].plan += r.plan;
+    byCat[r.cat].actual += r.actual;
+    byCat[r.cat].contract += r.contract;
+  });
+  const cats = Object.keys(byCat).sort();
+
+  // Table
+  const tbody = document.getElementById('revTable');
+  let html = '';
+  rows.forEach(r => {
+    html += `<tr><td class="unit-cell">${r.unit}</td><td>${r.cat}</td><td class="num">${fmt2(r.plan)}</td><td class="num">${fmt2(r.actual)}</td></tr>`;
+  });
+  html += `<tr class="total-row"><td colspan="2">ผลรวม</td><td class="num">${fmt2(totalPlan)}</td><td class="num">${fmt2(totalActual)}</td></tr>`;
+  tbody.innerHTML = html;
+
+  // Gauge
+  destroyChart('revGauge');
+  charts.revGauge = new Chart(document.getElementById('revGauge'), {
+    type:'doughnut',
+    data:{datasets:[{data:[pct,100-pct],backgroundColor:['#1F3864','#E5E7EB'],borderWidth:0}]},
+    options:{circumference:180,rotation:270,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+  });
+
+  // Stacked Bar 100%
+  destroyChart('revStacked');
+  charts.revStacked = new Chart(document.getElementById('revStacked'), {
+    type:'bar',
+    data:{
+      labels: cats.map(c => c.replace(/^\d+\./,'').trim()),
+      datasets:[
+        {label:'รับจริง', backgroundColor:'#1F3864', data: cats.map(c => byCat[c].plan ? byCat[c].actual/byCat[c].plan*100 : 0)},
+        {label:'ค้างรับตามสัญญา', backgroundColor:'#F4B084', data: cats.map(c => byCat[c].plan ? byCat[c].contract/byCat[c].plan*100 : 0)},
+        {label:'ค้างรับจากแผน', backgroundColor:'#F8C8DC', data: cats.map(c => {
+          const o = byCat[c].plan - byCat[c].actual - byCat[c].contract;
+          return byCat[c].plan ? Math.max(0,o)/byCat[c].plan*100 : 0;
+        })}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:ctx => ctx.dataset.label+': '+ctx.parsed.y.toFixed(2)+'%'}}},
+      scales:{
+        x:{stacked:true,ticks:{font:{size:10},maxRotation:0,callback:function(v){
+          const lbl = this.getLabelForValue(v); return lbl.length>18?lbl.substring(0,18)+'…':lbl;}}},
+        y:{stacked:true,max:100,ticks:{callback:v => v+'%'}}
+      }
+    }
+  });
+
+  // Pie by unit
+  const byUnit = {};
+  rows.forEach(r => byUnit[r.unit] = (byUnit[r.unit]||0) + r.actual);
+  const units = Object.keys(byUnit);
+  destroyChart('revPie');
+  charts.revPie = new Chart(document.getElementById('revPie'), {
+    type:'doughnut',
+    data:{labels:units, datasets:[{data:units.map(u => byUnit[u] || 0.001), backgroundColor:['#ED7D31','#5B9BD5','#1F1F1F','#70AD47','#7030A0'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:12}}},tooltip:{callbacks:{label:ctx => ctx.label+': '+fmt(ctx.parsed)}}}}
+  });
+}
+
+function renderExpense(){
+  const rows = applyFilter(DATA.expense);
+  const totalPlan = rows.reduce((s,x) => s+x.plan, 0);
+  const totalActual = rows.reduce((s,x) => s+x.actual, 0);
+  const remain = totalPlan - totalActual;
+  const pct = totalPlan ? (totalActual/totalPlan*100) : 0;
+  const remainPct = totalPlan ? (remain/totalPlan*100) : 0;
+
+  document.getElementById('exp-plan').textContent = fmt(totalPlan);
+  document.getElementById('exp-actual').textContent = fmt(totalActual);
+  document.getElementById('exp-actual-pct').textContent = '▲ ' + pct.toFixed(2) + '% ของแผน';
+  document.getElementById('exp-remain').textContent = fmt(remain);
+  document.getElementById('exp-remain-pct').textContent = remainPct.toFixed(2) + '% ของแผน';
+  document.getElementById('exp-gauge-num').textContent = pct.toFixed(2) + '%';
+
+  const sorted = [...rows].sort((a,b) => b.actual - a.actual);
+  const topCat = sorted[0];
+  if (topCat) {
+    document.getElementById('exp-top-cat').textContent = topCat.cat.replace(/^\d+\./,'').trim();
+    const tp = totalActual ? (topCat.actual/totalActual*100) : 0;
+    document.getElementById('exp-top-val').textContent = fmt(topCat.actual) + ' (' + tp.toFixed(1) + '%)';
+  }
+
+  // Table
+  const tbody = document.getElementById('expTable');
+  let html = '';
+  rows.forEach(r => {
+    html += `<tr><td class="unit-cell">${r.unit}</td><td>${r.cat}</td><td class="num">${fmt2(r.plan)}</td><td class="num">${fmt2(r.actual)}</td></tr>`;
+  });
+  html += `<tr class="total-row"><td colspan="2">ผลรวม</td><td class="num">${fmt2(totalPlan)}</td><td class="num">${fmt2(totalActual)}</td></tr>`;
+  tbody.innerHTML = html;
+
+  // Gauge
+  destroyChart('expGauge');
+  charts.expGauge = new Chart(document.getElementById('expGauge'), {
+    type:'doughnut',
+    data:{datasets:[{data:[pct,100-pct],backgroundColor:['#C00000','#E5E7EB'],borderWidth:0}]},
+    options:{circumference:180,rotation:270,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+  });
+
+  // Bar Budget vs Expense
+  destroyChart('expBar');
+  charts.expBar = new Chart(document.getElementById('expBar'), {
+    type:'bar',
+    data:{
+      labels: rows.map(d => d.cat.length>16 ? d.cat.substring(0,16)+'…' : d.cat),
+      datasets:[
+        {label:'Total Budget', backgroundColor:'#F8C8DC', data: rows.map(d => d.plan/1e6)},
+        {label:'Total Expense', backgroundColor:'#1F3864', data: rows.map(d => d.actual/1e6)}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:ctx => ctx.dataset.label+': ฿ '+ctx.parsed.y.toFixed(2)+'M'}}},
+      scales:{x:{ticks:{font:{size:10},maxRotation:45,minRotation:30}},y:{ticks:{callback:v => v+'M'}}}
+    }
+  });
+
+  // Pie expense by unit
+  const byUnit = {};
+  rows.forEach(r => byUnit[r.unit] = (byUnit[r.unit]||0) + r.actual);
+  const units = Object.keys(byUnit);
+  destroyChart('expPie');
+  charts.expPie = new Chart(document.getElementById('expPie'), {
+    type:'doughnut',
+    data:{labels:units, datasets:[{data:units.map(u => byUnit[u] || 0.001), backgroundColor:['#ED7D31','#5B9BD5','#1F1F1F','#70AD47','#7030A0'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:12}}},tooltip:{callbacks:{label:ctx => ctx.label+': '+fmt(ctx.parsed)}}}}
+  });
+}
+
+function renderCash(){
+  const rows = DATA.cash;
+  if (rows.length === 0) {
+    ['cash-camt','cash-ditc','cash-income','cash-expense'].forEach(id => document.getElementById(id).textContent = '-');
+    destroyChart('cashCAMT'); destroyChart('cashCombo');
+    return;
+  }
+  const last = rows[rows.length - 1];
+  document.getElementById('cash-camt').textContent = fmt(last.camt);
+  document.getElementById('cash-ditc').textContent = fmt(last.ditc);
+  document.getElementById('cash-income').textContent = fmt(rows.reduce((s,x) => s+x.income, 0));
+  document.getElementById('cash-expense').textContent = fmt(rows.reduce((s,x) => s+x.expense, 0));
+
+  // CASH-CAMT line
+  destroyChart('cashCAMT');
+  charts.cashCAMT = new Chart(document.getElementById('cashCAMT'), {
+    type:'line',
+    data:{labels:rows.map(d => d.m), datasets:[{label:'CASH-CAMT', data:rows.map(d => d.camt/1e6),
+      borderColor:'#4472C4',backgroundColor:'rgba(68,114,196,0.08)',borderWidth:3,fill:true,tension:0.3,
+      pointBackgroundColor:'#fff',pointBorderColor:'#4472C4',pointBorderWidth:2,pointRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:ctx => ctx.dataset.label+': ฿ '+ctx.parsed.y.toFixed(2)+'M'}}},
+      scales:{y:{beginAtZero:false,ticks:{callback:v => v+'M'}}}}
+  });
+
+  // Combo Income/Expense + CASH-DITC
+  destroyChart('cashCombo');
+  charts.cashCombo = new Chart(document.getElementById('cashCombo'), {
+    type:'bar',
+    data:{labels:rows.map(d => d.m),
+      datasets:[
+        {label:'Income', backgroundColor:'#1F3864', data:rows.map(d => d.income/1e6), order:2},
+        {label:'Expenses', backgroundColor:'#E5969B', data:rows.map(d => d.expense/1e6), order:2},
+        {label:'CASH-DITC', type:'line', borderColor:'#1F3864', backgroundColor:'#1F3864',
+         data:rows.map(d => d.ditc/1e6), borderWidth:3, tension:0.3, pointRadius:5,
+         pointBackgroundColor:'#fff', pointBorderColor:'#1F3864', pointBorderWidth:2, order:1}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:ctx => ctx.dataset.label+': ฿ '+ctx.parsed.y.toFixed(2)+'M'}}},
+      scales:{x:{ticks:{font:{size:11}}},y:{beginAtZero:true,ticks:{callback:v => v+'M'}}}}
+  });
+}
+
+// ============ Tab switching ============
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('page-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+// Initial load
+loadSampleData();
+</script>
+</body>
+</html>
