@@ -93,8 +93,7 @@
 </div>
 
 <div class="upload-hint" id="hint">
-  <b>💡 วิธีใช้:</b> คลิก <b>"อัปโหลด Excel"</b> เพื่อเลือกไฟล์เทมเพลต <code>Financial_Dashboard_Template_Full.xlsx</code> ที่กรอกข้อมูลแล้ว Dashboard จะอัปเดตข้อมูลทันที
-  <br>โครงสร้างชีตที่ต้องมี: <code>รายการรายรับ</code>, <code>รายการค่าใช้จ่าย</code>, <code>เงินสะสมรายเดือน</code>
+  <b>💡 ข้อมูลโหลดอัตโนมัติจากระบบออนไลน์</b> — หากต้องการดูข้อมูลจากไฟล์อื่น สามารถคลิก <b>"อัปโหลด Excel"</b> เพื่อเลือกไฟล์จากเครื่องของคุณได้
 </div>
 
 <div class="tabs">
@@ -660,8 +659,36 @@ document.querySelectorAll('.tab').forEach(t => {
   });
 });
 
-// Initial load
-loadSampleData();
+// ============ โหลดข้อมูลจริงจาก GitHub อัตโนมัติ ============
+async function loadFromRepo(){
+  const info = document.getElementById('fileInfo');
+  try {
+    // cache-buster เพื่อให้ได้ไฟล์ล่าสุดเสมอ
+    const res = await fetch('Financial_Dashboard_Template_Full.xlsx?t=' + Date.now());
+    if (!res.ok) throw new Error('ไม่พบไฟล์ข้อมูลในระบบ');
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    parseWorkbook(wb);
+    info.textContent = '✓ ข้อมูลออนไลน์ (โหลดอัตโนมัติจากระบบ)';
+    info.classList.add('show');
+    info.classList.remove('error');
+    document.getElementById('hint').classList.add('hide');
+    document.getElementById('footer').textContent =
+      'แหล่งข้อมูล: ระบบออนไลน์ • โหลดเมื่อ ' + new Date().toLocaleString('th-TH');
+    renderAll();
+    console.log('loadFromRepo: success');
+    return true;
+  } catch(e) {
+    console.log('loadFromRepo failed:', e.message);
+    return false;
+  }
+}
+
+// Initial load - ลองโหลดข้อมูลจริงจากระบบออนไลน์ก่อน ถ้าไม่มีจึงใช้ข้อมูลตัวอย่าง
+(async function init(){
+  const ok = await loadFromRepo();
+  if (!ok) loadSampleData();
+})();
 </script>
 </body>
 </html>
