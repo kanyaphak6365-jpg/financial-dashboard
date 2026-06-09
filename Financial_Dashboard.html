@@ -155,7 +155,7 @@
     <div class="card kpi kpi-warn"><div class="lbl">Expenses รวม (ปี)</div><div class="val" id="cash-expense">-</div><div class="sub2" style="color:#C00000">12 เดือน</div></div>
   </div>
   <div class="card" style="margin-bottom:14px"><h3>แนวโน้มเงินสะสมรายเดือน – CASH-CAMT</h3><div class="chart-wrap chart-tall"><canvas id="cashCAMT"></canvas></div></div>
-  <div class="card"><h3>Income vs Expenses รายเดือน + CASH-DITC</h3><div class="chart-wrap chart-tall"><canvas id="cashCombo"></canvas></div></div>
+  <div class="card"><h3>Income vs Expenses รายเดือน + CASH-CAMT + CASH-DITC</h3><div class="chart-wrap chart-tall"><canvas id="cashCombo"></canvas></div></div>
 </div>
 
 <div class="footer" id="footer">รอข้อมูล...</div>
@@ -630,22 +630,38 @@ function renderCash(){
       scales:{y:{beginAtZero:false,ticks:{callback:v => v+'M'}}}}
   });
 
-  // Combo Income/Expense + CASH-DITC
+  // Combo Income/Expense + CASH-DITC + CASH-CAMT (dual Y-axis)
   destroyChart('cashCombo');
   charts.cashCombo = new Chart(document.getElementById('cashCombo'), {
     type:'bar',
     data:{labels:rows.map(d => d.m),
       datasets:[
-        {label:'Income', backgroundColor:'#1F3864', data:rows.map(d => d.income/1e6), order:2},
-        {label:'Expenses', backgroundColor:'#E5969B', data:rows.map(d => d.expense/1e6), order:2},
+        {label:'Income', backgroundColor:'#1F3864',
+         data:rows.map(d => d.income/1e6), order:3, yAxisID:'y'},
+        {label:'Expenses', backgroundColor:'#E5969B',
+         data:rows.map(d => d.expense/1e6), order:3, yAxisID:'y'},
+        {label:'CASH-CAMT', type:'line', borderColor:'#4472C4', backgroundColor:'#4472C4',
+         data:rows.map(d => d.camt/1e6), borderWidth:3, tension:0.3, pointRadius:5, fill:false,
+         pointBackgroundColor:'#fff', pointBorderColor:'#4472C4', pointBorderWidth:2,
+         order:1, yAxisID:'y1'},
         {label:'CASH-DITC', type:'line', borderColor:'#1F3864', backgroundColor:'#1F3864',
-         data:rows.map(d => d.ditc/1e6), borderWidth:3, tension:0.3, pointRadius:5,
-         pointBackgroundColor:'#fff', pointBorderColor:'#1F3864', pointBorderWidth:2, order:1}
+         data:rows.map(d => d.ditc/1e6), borderWidth:3, tension:0.3, pointRadius:5, fill:false,
+         pointBackgroundColor:'#fff', pointBorderColor:'#1F3864', pointBorderWidth:2,
+         order:2, yAxisID:'y1'}
       ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
         tooltip:{callbacks:{label:ctx => ctx.dataset.label+': ฿ '+ctx.parsed.y.toFixed(2)+'M'}}},
-      scales:{x:{ticks:{font:{size:11}}},y:{beginAtZero:true,ticks:{callback:v => v+'M'}}}}
+      scales:{
+        x:{ticks:{font:{size:11}}},
+        y:{position:'left', beginAtZero:true,
+           ticks:{callback:v => v+'M', font:{size:10}},
+           title:{display:true, text:'Income / Expenses (ล้านบาท)', font:{size:11}}},
+        y1:{position:'right', beginAtZero:false,
+            ticks:{callback:v => v+'M', font:{size:10}},
+            grid:{drawOnChartArea:false},
+            title:{display:true, text:'CASH (ล้านบาท)', font:{size:11}}}
+      }}
   });
 }
 
