@@ -154,7 +154,6 @@
     <div class="card kpi kpi-actual"><div class="lbl">Income รวม (ปี)</div><div class="val" id="cash-income">-</div><div class="sub2" style="color:#70AD47">12 เดือน</div></div>
     <div class="card kpi kpi-warn"><div class="lbl">Expenses รวม (ปี)</div><div class="val" id="cash-expense">-</div><div class="sub2" style="color:#C00000">12 เดือน</div></div>
   </div>
-  <div class="card" style="margin-bottom:14px"><h3>แนวโน้มเงินสะสมรายเดือน – CASH-CAMT</h3><div class="chart-wrap chart-tall"><canvas id="cashCAMT"></canvas></div></div>
   <div class="card"><h3>Income vs Expenses รายเดือน + CASH-CAMT + CASH-DITC</h3><div class="chart-wrap chart-tall"><canvas id="cashCombo"></canvas></div></div>
 </div>
 
@@ -608,7 +607,7 @@ function renderCash(){
   const rows = DATA.cash;
   if (rows.length === 0) {
     ['cash-camt','cash-ditc','cash-income','cash-expense'].forEach(id => document.getElementById(id).textContent = '-');
-    destroyChart('cashCAMT'); destroyChart('cashCombo');
+    destroyChart('cashCombo');
     return;
   }
   const last = rows[rows.length - 1];
@@ -617,20 +616,7 @@ function renderCash(){
   document.getElementById('cash-income').textContent = fmt(rows.reduce((s,x) => s+x.income, 0));
   document.getElementById('cash-expense').textContent = fmt(rows.reduce((s,x) => s+x.expense, 0));
 
-  // CASH-CAMT line
-  destroyChart('cashCAMT');
-  charts.cashCAMT = new Chart(document.getElementById('cashCAMT'), {
-    type:'line',
-    data:{labels:rows.map(d => d.m), datasets:[{label:'CASH-CAMT', data:rows.map(d => d.camt/1e6),
-      borderColor:'#4472C4',backgroundColor:'rgba(68,114,196,0.08)',borderWidth:3,fill:true,tension:0.3,
-      pointBackgroundColor:'#fff',pointBorderColor:'#4472C4',pointBorderWidth:2,pointRadius:5}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
-        tooltip:{callbacks:{label:ctx => ctx.dataset.label+': ฿ '+ctx.parsed.y.toFixed(2)+'M'}}},
-      scales:{y:{beginAtZero:false,ticks:{callback:v => v+'M'}}}}
-  });
-
-  // Combo Income/Expense + CASH-DITC + CASH-CAMT (dual Y-axis)
+  // Combo Income/Expense + CASH-DITC (left axis) + CASH-CAMT (right axis)
   destroyChart('cashCombo');
   charts.cashCombo = new Chart(document.getElementById('cashCombo'), {
     type:'bar',
@@ -640,14 +626,14 @@ function renderCash(){
          data:rows.map(d => d.income/1e6), order:3, yAxisID:'y'},
         {label:'Expenses', backgroundColor:'#E5969B',
          data:rows.map(d => d.expense/1e6), order:3, yAxisID:'y'},
-        {label:'CASH-CAMT', type:'line', borderColor:'#4472C4', backgroundColor:'#4472C4',
-         data:rows.map(d => d.camt/1e6), borderWidth:3, tension:0.3, pointRadius:5, fill:false,
-         pointBackgroundColor:'#fff', pointBorderColor:'#4472C4', pointBorderWidth:2,
-         order:1, yAxisID:'y1'},
         {label:'CASH-DITC', type:'line', borderColor:'#1F3864', backgroundColor:'#1F3864',
          data:rows.map(d => d.ditc/1e6), borderWidth:3, tension:0.3, pointRadius:5, fill:false,
          pointBackgroundColor:'#fff', pointBorderColor:'#1F3864', pointBorderWidth:2,
-         order:2, yAxisID:'y1'}
+         order:2, yAxisID:'y'},
+        {label:'CASH-CAMT', type:'line', borderColor:'#4472C4', backgroundColor:'rgba(68,114,196,0.08)',
+         data:rows.map(d => d.camt/1e6), borderWidth:3, tension:0.3, pointRadius:5, fill:true,
+         pointBackgroundColor:'#fff', pointBorderColor:'#4472C4', pointBorderWidth:2,
+         order:1, yAxisID:'y1'}
       ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},
@@ -656,11 +642,11 @@ function renderCash(){
         x:{ticks:{font:{size:11}}},
         y:{position:'left', beginAtZero:true,
            ticks:{callback:v => v+'M', font:{size:10}},
-           title:{display:true, text:'Income / Expenses (ล้านบาท)', font:{size:11}}},
-        y1:{position:'right', beginAtZero:false,
-            ticks:{callback:v => v+'M', font:{size:10}},
+           title:{display:true, text:'Income / Expenses / CASH-DITC (ล้านบาท)', font:{size:11}}},
+        y1:{position:'right', beginAtZero:false, min:115, max:150,
+            ticks:{stepSize:5, callback:v => v+'M', font:{size:10}},
             grid:{drawOnChartArea:false},
-            title:{display:true, text:'CASH (ล้านบาท)', font:{size:11}}}
+            title:{display:true, text:'CASH-CAMT (ล้านบาท)', font:{size:11}}}
       }}
   });
 }
